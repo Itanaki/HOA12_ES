@@ -1,0 +1,48 @@
+- hosts: all
+  become: true
+  vars:
+    allowed_ssh_networks:
+      - 192.168.56.0/24
+      - 10.0.2.0/24
+    unnecessary_services:
+      - postfix
+      - telnet
+    unnecessary_software:
+      - tcpdump
+      - nmap-ncat
+      - wpa_supplicant
+  tasks:
+    - name: perform full patching
+      package:
+        name: '*'
+        state: latest
+      become: true
+
+    - name: Add admin group
+      group:
+        name: admin
+        state: present
+
+    - name: Add local user
+      user:
+        name: enzo
+        group: admin
+        shell: /bin/bash
+        home: /home/enzo
+        create_home: yes
+        state: present
+
+    - name: Add SSH public key for user
+      authorized_key:
+        user: enzo
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+        state: present
+
+    - name: Add sudoer rule for local user
+      copy:
+        dest: /etc/sudoers.d/admin
+        src: etc/sudoers.d/admin
+        owner: root
+        group: root
+        mode: 0440
+        validate: /usr/sbin/visudo -csf %s
